@@ -4,7 +4,7 @@ This is the user facing proxy url generation dashboard for the wordpress plugin 
 
 https://proxynetworkpro.com
 
-Proxy Network Pro let's you setup your own proxy network by reselling proxies from various providers.
+Proxy Network Pro let's you setup your own proxy network by reselling proxies from any providers.
 
 With Proxy Network Pro you can create residential and datacenter proxy networks.
 
