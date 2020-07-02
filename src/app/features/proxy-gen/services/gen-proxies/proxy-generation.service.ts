@@ -96,20 +96,24 @@ export class ProxyGenerationService {
       return [];
     }
 
+
+    const usingPnpApi = !!this.settingsService.apiBaseUrl;
+
     // *** 
     // FROM this point on is where we'll use wasm. 
     // We still want to be able to use the getServers and narrowProvidersByCountry function above.
     // ***
     const genArgs: GenProxiesArgs = {
       provider_codes: providers,
+      use_dns: usingPnpApi ? false : true,
       quantity,
       servers,
       package_id: pkg.id,
       is_static: isStatic,
       regions,
       proxy_domain: this.settingsService.proxyDomain,
-      username: this.authService.user.username,
-      password: this.authService.user.password,
+      username: usingPnpApi ? this.store.user.username : this.authService.user.username,
+      password: usingPnpApi ? this.store.user.password : this.authService.user.password,
     }
 
     const proxies: TableProxy[] = await this.proxyGen.gen_proxies(genArgs);
@@ -122,6 +126,7 @@ export class ProxyGenerationService {
 
 interface GenProxiesArgs {
   provider_codes: number[];
+  use_dns: boolean;
   quantity: number;
   servers: Server[];
   package_id: number;

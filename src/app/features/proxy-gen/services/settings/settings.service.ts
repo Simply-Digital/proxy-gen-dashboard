@@ -13,6 +13,12 @@ export class SettingsService {
   private _firebaseUsername: string; // only has user level permissions of course
   private _firebasePassword: string;
 
+  // for use with api instead of firebase
+  private _email: string; // = 'test@test.com';
+  private _retrievalKey: string; // = 'supersecret';
+  private _apiBaseUrl: string;// = 'http://127.0.0.1:9100/v1';
+
+
   constructor() { }
 
   get proxyDomain() {
@@ -45,6 +51,35 @@ export class SettingsService {
     this._firebasePassword = val;
   }
 
+  get email() {
+    if (this._email) {
+      return this._email;
+    }
+    return this._email = this.getElementValById('pnp-email');
+  }
+  set email(val: string) {
+    this._email = val;
+  }
+
+  get retrievalKey() {
+    if (this._retrievalKey) {
+      return this._retrievalKey;
+    }
+    return this._retrievalKey = this.getElementValById('pnp-retrieval-key');
+  }
+  set retrievalKey(val: string) {
+    this._retrievalKey = val;
+  }
+
+  get apiBaseUrl() {
+    if (this._apiBaseUrl) {
+      return this._apiBaseUrl;
+    }
+    return this._apiBaseUrl = this.getElementValById('pnp-api-base-url');
+  }
+  set apiBaseUrl(val: string) {
+    this._apiBaseUrl = val;
+  }
 
   // use this to pull our settings from divs on page
   private getElementValById(id: string) {

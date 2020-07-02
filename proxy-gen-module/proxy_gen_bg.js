@@ -201,12 +201,6 @@ function __wbg_adapter_20(arg0, arg1, arg2) {
 }
 
 /**
-*/
-export function log_host() {
-    wasm.log_host();
-}
-
-/**
 * @param {any} js_value
 * @returns {any}
 */
@@ -225,7 +219,7 @@ function handleError(f) {
         }
     };
 }
-function __wbg_adapter_55(arg0, arg1, arg2, arg3) {
+function __wbg_adapter_54(arg0, arg1, arg2, arg3) {
     wasm.wasm_bindgen__convert__closures__invoke2_mut__hd59c8fcd41f9c724(arg0, arg1, addHeapObject(arg2), addHeapObject(arg3));
 }
 
@@ -369,7 +363,7 @@ export const __wbg_new_261626435fed913c = function(arg0, arg1) {
             const a = state0.a;
             state0.a = 0;
             try {
-                return __wbg_adapter_55(a, state0.b, arg0, arg1);
+                return __wbg_adapter_54(a, state0.b, arg0, arg1);
             } finally {
                 state0.a = a;
             }
@@ -466,7 +460,7 @@ export const __wbindgen_throw = function(arg0, arg1) {
     throw new Error(getStringFromWasm0(arg0, arg1));
 };
 
-export const __wbindgen_closure_wrapper943 = function(arg0, arg1, arg2) {
+export const __wbindgen_closure_wrapper940 = function(arg0, arg1, arg2) {
     var ret = makeMutClosure(arg0, arg1, 89, __wbg_adapter_20);
     return addHeapObject(ret);
 };

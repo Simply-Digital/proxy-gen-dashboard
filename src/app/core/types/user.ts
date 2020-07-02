@@ -5,12 +5,14 @@ export interface User {
     packages: UserPackages;
     username: string;   // proxy username
     password: string;   // proxy password
-    wpUsername: string; // wordpress username
+    wpUsername?: string; // wordpress username
 }
 
-export interface UserPackages {
-    [packageID: number]: ProxyUsage; // key corresponds to the ID of a proxy package in the packages collection
-}
+export type UserPackages = Record<number, ProxyUsage>; // key corresponds to the ID of a proxy package in the packages collection
+
+// export interface UserPackages {
+//     [packageID: number]: ProxyUsage; // key corresponds to the ID of a proxy package in the packages collection
+// }
 
 export interface ProxyUsage {
     used: number;

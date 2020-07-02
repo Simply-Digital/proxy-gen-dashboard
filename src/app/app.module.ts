@@ -7,7 +7,7 @@ import { ProxyGenModule } from './features/proxy-gen/proxy-gen.module';
 import { AngularFireModule } from '@angular/fire';
 import { AngularFirestoreModule } from '@angular/fire/firestore';
 import { AngularFireAuthModule } from '@angular/fire/auth';
-
+import { HttpClientModule } from '@angular/common/http';
 
 
 // Get firebase client creds.
@@ -29,6 +29,7 @@ try {
     AngularFireModule.initializeApp(fbCreds),
     AngularFirestoreModule,
     AngularFireAuthModule,
+    HttpClientModule,
     ProxyGenModule
   ],
   providers: [],

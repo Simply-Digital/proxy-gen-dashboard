@@ -19,21 +19,25 @@ export class AuthService {
     private settingsService: SettingsService,
   ) {
 
-    // Subscribe to auth state and log in if needed.
-    // switchMap to user doc
-    this.afAuth.authState
-      .pipe(
-        switchMap(user => {
-          //return user ? this.userDoc(user) : this.signIn(); 
-          if (!user || user.email != this.settingsService.firebaseUsername) {
-            return this.signIn();
-          }
-          return this.userDoc(user);
-        })
-      )
-      .subscribe((user: User) => {
-        this._user.next(user);     
-      });
+
+    if (!this.settingsService.apiBaseUrl) { // only signin to firebase if we are not using pnp api
+
+      // Subscribe to auth state and log in if needed.
+      // switchMap to user doc
+      this.afAuth.authState
+        .pipe(
+          switchMap(user => {
+            //return user ? this.userDoc(user) : this.signIn(); 
+            if (!user || user.email != this.settingsService.firebaseUsername) {
+              return this.signIn();
+            }
+            return this.userDoc(user);
+          })
+        )
+        .subscribe((user: User) => {
+          this._user.next(user);
+        });
+    }
 
   }
 

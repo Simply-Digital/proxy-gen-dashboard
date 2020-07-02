@@ -4,11 +4,12 @@ import { ProxyPackage } from '../../../features/proxy-gen/types/proxy-package';
 import { TableProxy } from '../../../features/proxy-gen/types/table-proxy';
 import produce from 'immer';
 import { pluck, switchMap, map, take, catchError, filter, tap } from 'rxjs/operators';
-import { User, ProxyUsage } from '../../types/user';
+import { User, ProxyUsage, UserPackages } from '../../types/user';
 import { AuthService } from '../auth/auth.service';
 import { AngularFirestore } from '@angular/fire/firestore';
 import { Server } from '../../types/server';
 import { SettingsService } from 'src/app/features/proxy-gen/services/settings/settings.service';
+import { PnpApiService } from '../pnp-api/pnp-api.service';
 
 /**
  * This is a relatively simple app, so we'll use a simple service as our store.
@@ -31,9 +32,13 @@ export class StoreService {
   tableProxies$: Observable<TableProxy[]> = this.state$.pipe(pluck('tableProxies'));
   servers$: Observable<Server[]> = this.state$.pipe(pluck('servers'));
 
+  // only used if using the pnp api
+  user: User;
+
   constructor(private authService: AuthService,
               private afs: AngularFirestore,
-              private settingsService: SettingsService) {
+              private settingsService: SettingsService,
+              private pnpApiService: PnpApiService,) {
     this.setInitialState();
   }
 
@@ -47,7 +52,7 @@ export class StoreService {
     this._state.next(newState);
   }
 
-  private setInitialState() {
+  private async setInitialState() {
 
     const pkgsFromStorage = this.pkgsFromLocalStorage();
 
@@ -61,9 +66,52 @@ export class StoreService {
 
     this.setState(state);
 
-    this.watchPackages();
-    this.watchServersCollection();
+    if (!this.settingsService.apiBaseUrl) {
+      // using firebase
+      this.watchPackages();
+      this.watchServersCollection();
+    } else {
+      // using pnp api
+      this.user = await this.pnpApiService.getUser().toPromise();
+      this.watchPackagesPNPApi();
+      this.watchServersPNPApi();
+    }
 
+
+  }
+
+  // get servers from pnp api instead of firebase
+  private async watchServersPNPApi() {
+
+    while (true) {
+      const servers = await this.pnpApiService.getServers().toPromise();
+      this.setServers(servers);
+
+      await this.sleep(60);
+    }
+
+  }
+
+  // get packages from pnp api instead of firebase
+  private async watchPackagesPNPApi() {
+
+    while (true) {
+      const allPackages = await this.pnpApiService.getPackages().toPromise();
+
+      const mergedPackages = this.mergeProxyPackages(allPackages, this.user.packages);
+
+      this.setPackages(mergedPackages);
+
+      this.resetSelectedPackage(mergedPackages);
+
+      await this.sleep(60);
+    }
+
+  }
+
+  private sleep(seconds: number) {
+    const ms = seconds*1000;
+    return new Promise((res) => setTimeout(res, ms));
   }
 
   // watch the servers collection to get subdomains of servers
@@ -86,9 +134,56 @@ export class StoreService {
         })
       )
       .subscribe((servers: Server[]) => {
-        this.setServerDomains(servers);
+        this.setServers(servers);
       })
 
+  }
+
+  // we want to merge the regions from the 'allProxyPackages' and the stats from the 'usersPackages'
+  private mergeProxyPackages(allProxyPackages: ProxyPackage[], userPackages: UserPackages): ProxyPackage[] {
+    
+    const merged: ProxyPackage[] = [];
+    
+    // Loop through packages the user has already purchased,
+    // and add bandwidth used and bandwidth allotted
+    for (let id of Object.keys(userPackages)) {
+      const pkg = allProxyPackages.find((p) => p.id == parseInt(id));
+      const usage: ProxyUsage = userPackages[parseInt(id)];
+
+      pkg.bwAllotted = usage.allotted;
+      // if the user has used more than they're allotted, we don't want to display that.
+      // we only want to display that they've used up the amount they were allotted.
+      if (usage.used > usage.allotted) {
+        pkg.bwUsed = usage.allotted;
+      } else {
+        pkg.bwUsed = usage.used;
+      }
+
+      merged.push(pkg);
+    }
+
+    return merged;
+  }
+
+  // set selected package to the package the user was already viewing if it exists in new data
+  // else set it to first package in new data
+  private resetSelectedPackage(pkgs: ProxyPackage[]) {
+    this.selectedPackage$.pipe(take(1)).subscribe((p) => {
+
+      const selectedPkgID: number = p && p.id;
+
+      const newSelectedPkg: ProxyPackage = pkgs.find((p) => p.id == selectedPkgID);
+
+      if (!newSelectedPkg) {
+
+        this.setSelectedPackage(pkgs[0]); // not found. set selected to first in new list
+        // clear any proxies in table too, because if they exist, they don't match the selected package
+        this.setTableProxies([]);
+        return;
+      }
+
+      this.setSelectedPackage(newSelectedPkg);
+    });
   }
 
   // Set packages in state based on user doc and docs from package collection from firestore.
@@ -107,29 +202,9 @@ export class StoreService {
               map((snapshot) => {
                 // All the proxy packages available for purchase. Grabbing from firestore.
                 // We need the regions off of this document. That's why we're grabbing it.
-                const proxyPackages: ProxyPackage[] = snapshot.docs.map((doc) => doc.data() as ProxyPackage);
+                const allProxyPackages: ProxyPackage[] = snapshot.docs.map((doc) => doc.data() as ProxyPackage);
 
-                const userPackages: ProxyPackage[] = [];
-
-                // Loop through packages the user has already purchased,
-                // and add bandwidth used and bandwidth allotted
-                for (let id of Object.keys(user.packages)) {
-                  const pkg = proxyPackages.find((p) => p.id == parseInt(id));
-                  const usage: ProxyUsage = user.packages[parseInt(id)];
-
-                  pkg.bwAllotted = usage.allotted;
-                  // if the user has used more than they're allotted, we don't want to display that.
-                  // we only want to display that they've used up the amount they were allotted.
-                  if (usage.used > usage.allotted) {
-                    pkg.bwUsed = usage.allotted;
-                  } else {
-                    pkg.bwUsed = usage.used;
-                  }
-
-                  userPackages.push(pkg);
-                }
-
-                return userPackages;
+                return this.mergeProxyPackages(allProxyPackages, user.packages);
               }),
               catchError((error) => {
                 console.error(error);
@@ -143,24 +218,7 @@ export class StoreService {
 
         this.setPackages(pkgs);
 
-        // set selected package to the package the user was already viewing if it exists in new data
-        // else set it to first package in new data
-        this.selectedPackage$.pipe(take(1)).subscribe((p) => {
-
-          const selectedPkgID: number = p && p.id;
-
-          const newSelectedPkg: ProxyPackage = pkgs.find((p) => p.id == selectedPkgID);
-
-          if (!newSelectedPkg) {
-
-            this.setSelectedPackage(pkgs[0]); // not found. set selected to first in new list
-            // clear any proxies in table too, because if they exist, they don't match the selected package
-            this.setTableProxies([]);
-            return;
-          }
-
-          this.setSelectedPackage(newSelectedPkg);
-        });
+        this.resetSelectedPackage(pkgs);
         
       });
   }
@@ -189,9 +247,9 @@ export class StoreService {
     this.setState(newState);
   }
 
-  setServerDomains(domains: Server[]) {
+  setServers(servers: Server[]) {
     const newState: State = produce(this.currentState, (draft: State) => {
-      draft.servers = domains;
+      draft.servers = servers;
     });
     this.setState(newState);
   }
@@ -207,8 +265,10 @@ export class StoreService {
         delete p.bwAllotted;
         delete p.bwUsed;
         // add user email so on next page load we can be sure we're loading packages from 
-        // the correct user when we check local storage
-        (p as any).userEmail = this.authService.user.email;
+        // the correct user when we check local storage.
+        // Set user const below based on whether we're using the api or not
+        const user = this.settingsService.apiBaseUrl ? this.user : this.authService.user;
+        (p as any).userEmail = user.email;
       })
     });
     localStorage.setItem('proxyPackages', moddedPackages ? JSON.stringify(moddedPackages) : null);
