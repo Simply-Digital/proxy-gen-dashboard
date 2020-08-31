@@ -31,6 +31,7 @@ export class TableProxy {
             args.regionShortname + // 2 characters
             randomString(6) + // 6 characters
             args.providerCode + // 2 characters
+            '-' +
             args.packageId; // variable number of characters
 
     }
